@@ -9,22 +9,30 @@ const byte SEGMENT_MAP[] = {0xC0,0xF9,0xA4,0xB0,0x99,0x92,0x82,0xF8,0X80,0X90};
 /* Byte maps to select digit 1 to 4 */
 const byte SEGMENT_SELECT[] = {0xF1,0xF2,0xF4,0xF8};
 
+/* Variaveis com os valores de cada segmento do display */
 int h = 0, hh = 0, m = 0, mm = 0;
 
+/* Variaves que guardam a hora */
 int minute = 0;
 int hour = 0;
-int alarmHour = 22;
-int alarmMinute = 30;
+int alarmHour = 0;
+int alarmMinute = 3;
 
-int lastBlink = 0;
+bool blinkState = true;
+bool alarmOn = false;
 
-int minuteDuration = 1000; /* Duração do minuto em ms. Trocar para facilitar testes. */
+int minuteDuration = 60000; /* Duração do minuto em ms. Trocar para facilitar testes. */
+int snoozeDuration = 10; /* Duração do snooze em minutos */
 
 unsigned long previousMillis = 0;
 unsigned long lastActivity = 0;
+unsigned long lastFirstKeyClick = 0;
+unsigned long lastThirdKeyClick = -1000;
+unsigned long lastBlink = -1000;
 
 int lastStates[3] = {0, 0, 0};
 
+/* Variavel que representa o estado do relógio */
 int activeState = 0;
 
 
@@ -37,10 +45,11 @@ void setup() {
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
   pinMode(LED4, OUTPUT);
+  pinMode(BUZZ, OUTPUT);
   pinMode(KEY1, INPUT_PULLUP);
   pinMode(KEY2, INPUT_PULLUP);
   pinMode(KEY3, INPUT_PULLUP);
-
+  digitalWrite(BUZZ,HIGH);       
   Serial.begin(9600);
 }
 
@@ -55,6 +64,8 @@ void loop() {
    checkActivity();
 }
 
+/* Função que checa se o relógio está inativo há 10 segundos nos modos de mudar horário*/
+
 void checkActivity(){
    if((activeState == 3) || (activeState == 4) || (activeState == 5) || (activeState == 6)){
       unsigned long currentMillis = millis();
@@ -64,14 +75,18 @@ void checkActivity(){
    }  
 }
 
+/* Função que checa o alarme */
+
 void checkAlarm(){
   if(activeState == 1){
      if ((hour == alarmHour) && (minute == alarmMinute)){
-        // sound alarm
+            digitalWrite(BUZZ,LOW);
+            alarmOn = true;
      } 
   }  
 }
 
+/* Função para ligar os LEDs de acordo com o estado */
 void updateLeds(){
   switch(activeState){
       case 0:
@@ -119,6 +134,8 @@ void updateLeds(){
    }
 }
 
+/* Função que checa e administra o clique */
+
 void checkButton(int pin){
   int buttonState = digitalRead(pin);
   int i = 0;
@@ -135,17 +152,36 @@ void checkButton(int pin){
         break;
   }
 
+  /* Verifica o clique simultaneo dos botões 1 e 3 */
+  if(!digitalRead(KEY1) && !digitalRead(KEY3)){
+     activeState = 0;
+     delay(50);
+     return;  
+  }
+
   if (buttonState != lastStates[i]){
     if(buttonState == LOW){
        lastActivity = millis();
-       if(pin == KEY3){
-          activeState++;
-          if(activeState == 7){
-             activeState = 0;
-          }
+
+       /* Lida com clique no botão 1 */
+       if(pin == KEY1){
+
+          /* Para o alarme */
+          lastFirstKeyClick = millis();
+          alarmOn = false;
+          digitalWrite(BUZZ, HIGH);
        }
 
+       /* Lida com clique no botão 2 */
        if(pin == KEY2){
+          if((activeState == 1) && alarmOn){
+
+              /* Ativa a soneca */
+              for(int i = 0; i < snoozeDuration; i++){
+                  increaseMinute(true);
+              }
+              digitalWrite(BUZZ, HIGH);
+          }
           if(activeState == 3){
               increaseHour(false);
           }
@@ -159,12 +195,22 @@ void checkButton(int pin){
               increaseMinute(true);
           }
        }
+
+       /* Lida com o clique do botão 3 */
+       if(pin == KEY3){
+          activeState++;
+          lastThirdKeyClick = millis();     
+          if(activeState == 7){
+             activeState = 0;
+          }
+       }
     }
     delay(50);
     lastStates[i] = buttonState;
   }
 }
 
+/* Aumenta em 1 a hora. Boolean diz se é do alarme ou não */
 void increaseHour(bool isAlarm){
   if(isAlarm){
     alarmHour++;
@@ -178,6 +224,8 @@ void increaseHour(bool isAlarm){
     }  
   }
 }
+
+/* Aumenta em 1 o minuto. Boolean diz se é do alarme ou não */
 
 void increaseMinute(bool isAlarm){
 
@@ -195,16 +243,48 @@ void increaseMinute(bool isAlarm){
     }
   }
 }
+
+/* Atualiza os segmentos do display */
 void updateSegments(){
 
-   WriteNumberToSegment(0 , h);
-   WriteNumberToSegment(1 , hh);
-   WriteNumberToSegment(2 , m);
-   WriteNumberToSegment(3 , mm);
+   unsigned long now = millis();
+   if(activeState == 3 || activeState == 5){
+      if (now - lastBlink >= 500){
+         lastBlink = now;
+         blinkState = !blinkState;
+      }
+      if(blinkState){
+        WriteNumberToSegment(0 , h);
+        WriteNumberToSegment(1 , hh);
+      } 
+      WriteNumberToSegment(2 , m);
+      WriteNumberToSegment(3 , mm);
+      
+   }else if (activeState == 4 || activeState == 6){
+      unsigned long now = millis();
+      if (abs(now - lastBlink) >= 500){
+         lastBlink = now;
+         blinkState = !blinkState;
+         Serial.println(blinkState);
+      }
+      if(blinkState){
+        WriteNumberToSegment(2 , m);
+        WriteNumberToSegment(3 , mm);
+      } 
+      WriteNumberToSegment(0 , h);
+      WriteNumberToSegment(1 , hh);
+   }else{
+      WriteNumberToSegment(0 , h);
+      WriteNumberToSegment(1 , hh);
+      WriteNumberToSegment(2 , m);
+      WriteNumberToSegment(3 , mm);
+   }
    
+  
+
    unsigned long currentMillis = millis();
     
-
+  /* Registra o tempo passando */
     if (currentMillis - previousMillis >= minuteDuration) {
       // One minute passed
       previousMillis = currentMillis;
@@ -240,9 +320,8 @@ void updateSegments(){
 }
 
 void WriteNumberToSegment(byte Segment, byte Value) {
-
-    digitalWrite(LATCH_DIO,LOW);
-    shiftOut(DATA_DIO, CLK_DIO, MSBFIRST, SEGMENT_MAP[Value]);
-    shiftOut(DATA_DIO, CLK_DIO, MSBFIRST, SEGMENT_SELECT[Segment] );
-    digitalWrite(LATCH_DIO,HIGH);
+      digitalWrite(LATCH_DIO,LOW);
+      shiftOut(DATA_DIO, CLK_DIO, MSBFIRST, SEGMENT_MAP[Value]);
+      shiftOut(DATA_DIO, CLK_DIO, MSBFIRST, SEGMENT_SELECT[Segment] );
+      digitalWrite(LATCH_DIO,HIGH); 
 }
