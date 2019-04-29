@@ -1,7 +1,5 @@
 local xinit = 10
 local yinit = 10
-local x2init = 250
-local y2init = 250
 local w = 100
 local h = 50
 local rets = {}
