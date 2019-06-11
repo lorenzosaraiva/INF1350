@@ -7,16 +7,16 @@ local mytimer = tmr.create()
 local function right ()
   if gpio.read(sw2) == gpio.LOW then
      m:publish("apertou-tecla", "tiro",
-           0, 0, function (c) print ("enviou!") end)
+           0, 0, function (c) print ("tiro") end)
   else
      m:publish("apertou-tecla", "right",
-           0, 0, function (c) print ("enviou!") end)
+           0, 0, function (c) print ("direita") end)
   end
 end
 
 local function left ()
   m:publish("apertou-tecla", "left",
-           0, 0, function (c) print ("enviou!") end)
+           0, 0, function (c) print ("esquerda") end)
 end
 
 m:on("message", 
