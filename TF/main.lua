@@ -318,6 +318,7 @@ function mqttcb(topic, message)
   end
   if message == 'timeout' then
     love.window.showMessageBox("Fim do tempo!", "Aperte OK para tentar de novo.", enterbutton)
+    currentLevel = 1
     startGame()
   end
   
