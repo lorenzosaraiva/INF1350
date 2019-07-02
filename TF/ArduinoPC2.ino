@@ -46,9 +46,6 @@ unsigned long curMillis;
 unsigned long prevReplyToPCmillis = 0;
 unsigned long replyToPCinterval = 1000;
 
-
-//MEU
-
 boolean check = false;
 
 const int leftButtonPin = A1;
@@ -330,7 +327,7 @@ void updateSegments(){
       m = floor(vminute);
       mm = minute % 10;
 
-      if(hh == 1){
+      if(hh == 3){
         check = true;
         minute = 0;
         hour = 0;  
