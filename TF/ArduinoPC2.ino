@@ -123,8 +123,6 @@ void loop() {
       value = 0;     
     }
 
-    // Delay a little bit to avoid bouncing
-    delay(50);
   }
   
   lastLeftButtonState = leftButtonState;
@@ -141,8 +139,7 @@ void loop() {
       value = 1;      
     }
 
-    // Delay a little bit to avoid bouncing
-    delay(50);
+
   }
   
   lastMidButtonState = midButtonState;
@@ -158,8 +155,6 @@ void loop() {
       value = 2;      
     }
 
-    // Delay a little bit to avoid bouncing
-    delay(50);
   }
   
   lastRightButtonState = rightButtonState;
